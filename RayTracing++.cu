@@ -1,8 +1,6 @@
+#include "common.cuh"
 #include "SDL.h"
-#include <iostream>
 #include "processing.cu"
-#include <cuda_runtime.h>
-#include <device_launch_parameters.h>
 #include "hittable.cuh"
 #include "hittable_list.cuh"
 #include "sphere.cuh"
@@ -17,8 +15,6 @@ __global__ void create_world(hittable** d_list, hittable** d_world) {
 }
 
 int main(int argc, char* argv[]) {
-
-
 
     // Initialize SDL
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
@@ -65,15 +61,20 @@ int main(int argc, char* argv[]) {
 
     create_world <<<1, 1 >>> (d_list, d_world);
 
+    camera cam;
 
-    // processImage(image, width, height);
+    cam.aspect_ratio = float(width) / float(height);
+    cam.image_width = width;
+    cam.initialize();
+
+    processImage(image, width, height, d_world, cam);
 
     // Update texture with the processed image
     SDL_UpdateTexture(texture, NULL, image, width * 3);
 
     // Define button area
-    SDL_Rect buttonRect = { 1100, 590, 100, 50 }; // x, y, width, height
-
+    SDL_Rect buttonRectRight = { 1100, 590, 100, 50 }; // x, y, width, height
+    SDL_Rect buttonRectLeft = { 20, 590, 100, 50 }; // x, y, width, height
     // Main loop
     bool running = true;
     SDL_Event event;
@@ -85,10 +86,22 @@ int main(int argc, char* argv[]) {
             else if (event.type == SDL_MOUSEBUTTONDOWN) {
                 int x, y;
                 SDL_GetMouseState(&x, &y);
-                if (x >= buttonRect.x && x <= (buttonRect.x + buttonRect.w) &&
-                    y >= buttonRect.y && y <= (buttonRect.y + buttonRect.h)) {
+                if (x >= buttonRectRight.x && x <= (buttonRectRight.x + buttonRectRight.w) &&
+                    y >= buttonRectRight.y && y <= (buttonRectRight.y + buttonRectRight.h)) {
                     // Button clicked, reprocess image
-                    processImage(image, width, height, d_world);
+                    cam.center += vec3(1, 0, 0);
+                    cam.initialize();
+                    processImage(image, width, height, d_world, cam);
+                    
+                    SDL_UpdateTexture(texture, NULL, image, width * 3);
+                }
+                else if (x >= buttonRectLeft.x && x <= (buttonRectLeft.x + buttonRectLeft.w) &&
+                    y >= buttonRectLeft.y && y <= (buttonRectLeft.y + buttonRectLeft.h)) {
+                    // Button clicked, reprocess image
+                    cam.center += vec3(-1, 0, 0);
+                    cam.initialize();
+                    processImage(image, width, height, d_world, cam);
+                    
                     SDL_UpdateTexture(texture, NULL, image, width * 3);
                 }
             }
@@ -101,7 +114,10 @@ int main(int argc, char* argv[]) {
 
         // Render the button
         SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255); // Blue button
-        SDL_RenderFillRect(renderer, &buttonRect);
+        SDL_RenderFillRect(renderer, &buttonRectRight);
+
+        SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255); // Blue button
+        SDL_RenderFillRect(renderer, &buttonRectLeft);
 
         // Optionally, render button text (requires SDL_ttf for text rendering, not covered here)
 

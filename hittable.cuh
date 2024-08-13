@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ray.cuh"
+#include "common.cuh"
 
 class hit_record {
 public:
@@ -19,5 +19,5 @@ class hittable {
 public:
 	__device__ virtual ~hittable() = default;
 
-	__device__ virtual bool hit(const ray&, float ray_tmin, float ray_tmax, hit_record& rec) const = 0;
+	__device__ virtual bool hit(const ray&, interval ray_t, hit_record& rec) const = 0;
 };

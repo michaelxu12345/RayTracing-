@@ -1,8 +1,4 @@
 #pragma once
-
-#include <cmath>
-#include <iostream>
-#include <cuda_runtime.h>
 #include "vec3.cuh"
 
 using color = vec3;

@@ -36,6 +36,15 @@
     <ClInclude Include="hittable_list.cuh">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="common.cuh">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="interval.cuh">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="camera.cuh">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="RayTracing++.cu">

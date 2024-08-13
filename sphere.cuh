@@ -1,12 +1,10 @@
 #pragma once
-
-#include "hittable.cuh"
-#include "vec3.cuh"
+#include "common.cuh"
 
 class sphere : public hittable {
 public:
 	__device__ sphere(const point3& center, float radius) : center(center), radius(fmaxf(0, radius)) {}
-	__device__ bool hit(const ray& r, float ray_tmin, float ray_tmax, hit_record& rec) const override {
+	__device__ bool hit(const ray& r, interval ray_t, hit_record& rec) const override {
 		vec3 oc = center - r.origin();
 		float a = dot(r.direction(), r.direction());
 		float h = dot(r.direction(), oc);
@@ -21,9 +19,9 @@ public:
 
 		// nearest root
 		float root = (h - sqrtd) / a;
-		if (root <= ray_tmin || ray_tmax <= root) {
+		if (!ray_t.surrounds(root)) {
 			root = (h + sqrtd) / a;
-			if (root <= ray_tmin || ray_tmax <= root) {
+			if (!ray_t.surrounds(root)) {
 				return false;
 			}
 		}

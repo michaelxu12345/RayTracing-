@@ -133,9 +133,12 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="camera.cuh" />
     <ClInclude Include="color.cuh" />
+    <ClInclude Include="common.cuh" />
     <ClInclude Include="hittable.cuh" />
     <ClInclude Include="hittable_list.cuh" />
+    <ClInclude Include="interval.cuh" />
     <ClInclude Include="processing.cu" />
     <ClInclude Include="ray.cuh" />
     <ClInclude Include="sphere.cuh" />
