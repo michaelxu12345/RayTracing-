@@ -1,6 +1,20 @@
 #include "SDL.h"
 #include <iostream>
-#include "./processing.cuh"
+#include "processing.cu"
+#include <cuda_runtime.h>
+#include <device_launch_parameters.h>
+#include "hittable.cuh"
+#include "hittable_list.cuh"
+#include "sphere.cuh"
+
+
+__global__ void create_world(hittable** d_list, hittable** d_world) {
+    if (threadIdx.x == 0 && blockIdx.x == 0) {
+        d_list[0] = new sphere(vec3(0, 0, -1), 0.5);
+        d_list[1] = new sphere(vec3(0, -100.5, -1), 100);
+        *d_world = new hittable_list(d_list, 2);
+    }
+}
 
 int main(int argc, char* argv[]) {
 
@@ -12,7 +26,7 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
-    SDL_Window* window = SDL_CreateWindow("CUDA Image Renderer", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 800, 600, SDL_WINDOW_SHOWN);
+    SDL_Window* window = SDL_CreateWindow("CUDA Image Renderer", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1280, 720, SDL_WINDOW_SHOWN);
     if (!window) {
         std::cerr << "Failed to create window: " << SDL_GetError() << std::endl;
         SDL_Quit();
@@ -28,8 +42,8 @@ int main(int argc, char* argv[]) {
     }
 
     // Create an SDL texture
-    int width = 800;
-    int height = 600;
+    int width = 1280;
+    int height = 720;
     SDL_Texture* texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_STREAMING, width, height);
 
     // Allocate memory for image
@@ -43,13 +57,22 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    processImage(image, width, height);
+    // Creating world
+    hittable** d_list;
+    hittable** d_world;
+    cudaMalloc((void**)&d_list, 2 * sizeof(hittable*));
+    cudaMalloc((void**)&d_world, sizeof(hittable*));
+
+    create_world <<<1, 1 >>> (d_list, d_world);
+
+
+    // processImage(image, width, height);
 
     // Update texture with the processed image
     SDL_UpdateTexture(texture, NULL, image, width * 3);
 
     // Define button area
-    SDL_Rect buttonRect = { 650, 500, 100, 50 }; // x, y, width, height
+    SDL_Rect buttonRect = { 1100, 590, 100, 50 }; // x, y, width, height
 
     // Main loop
     bool running = true;
@@ -65,7 +88,7 @@ int main(int argc, char* argv[]) {
                 if (x >= buttonRect.x && x <= (buttonRect.x + buttonRect.w) &&
                     y >= buttonRect.y && y <= (buttonRect.y + buttonRect.h)) {
                     // Button clicked, reprocess image
-                    processImage(image, width, height);
+                    processImage(image, width, height, d_world);
                     SDL_UpdateTexture(texture, NULL, image, width * 3);
                 }
             }

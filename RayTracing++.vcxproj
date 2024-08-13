@@ -133,20 +133,16 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="RayTracing++.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <CudaCompile Include="processing.cu" />
-  </ItemGroup>
-  <ItemGroup>
     <ClInclude Include="color.cuh" />
-    <ClInclude Include="common.cuh" />
     <ClInclude Include="hittable.cuh" />
     <ClInclude Include="hittable_list.cuh" />
-    <ClInclude Include="processing.cuh" />
+    <ClInclude Include="processing.cu" />
     <ClInclude Include="ray.cuh" />
     <ClInclude Include="sphere.cuh" />
     <ClInclude Include="vec3.cuh" />
+  </ItemGroup>
+  <ItemGroup>
+    <CudaCompile Include="RayTracing++.cu" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

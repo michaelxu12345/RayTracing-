@@ -1,1 +1,0 @@
-void processImage(unsigned char* h_image, int width, int height);

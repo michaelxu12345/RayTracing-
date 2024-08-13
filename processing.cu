@@ -1,31 +1,20 @@
+#pragma once
+
 #include <cuda_runtime.h>
 #include <device_launch_parameters.h>
-#include "./processing.cuh"
+//#include "./processing.cuh"
 #include "color.cuh"
 #include "ray.cuh"
+#include "hittable.cuh"
+#include "hittable_list.cuh""
 
 // don't forget to manual-enforce floats by adding f to every decimal
 
-__device__ float hit_sphere(const point3& center, float radius, const ray& r) {
-	vec3 oc = center - r.origin();
-	float a = dot(r.direction(), r.direction());
-	float h = dot(r.direction(), oc);
-	float c = oc.length_squared() - radius * radius;
 
-	float discriminant = h * h - a * c;
-	if (discriminant < 0) {
-		return -1.0f;
-	}
-	else {
-		return (h - sqrtf(discriminant)) / (a);
-	}
-}
-
-
-__device__ color ray_color(const ray& r) {
-	float x = hit_sphere(point3(0, 0, -1), 0.5, r);
-	if (x > 0.0f) {
-		vec3 N = unit_vector(r.at(x) - vec3(0, 0, -1));
+__device__ color ray_color(const ray& r, hittable** world) {
+	hit_record rec;
+	if ((*world)->hit(r, 0.0, FLT_MAX, rec)) {
+		vec3 N = rec.normal;
 		return 0.5f * color(N.x() + 1, N.y() + 1, N.z() + 1);
 	}
 
@@ -35,8 +24,9 @@ __device__ color ray_color(const ray& r) {
 }
 
 __global__ void processImageKernel(unsigned char* d_image, int width, int height,
-	point3 camera_center, point3 pixel_upper_left, vec3 pixel_du, vec3 pixel_dv
-	) {
+	point3 camera_center, point3 pixel_upper_left, vec3 pixel_du, vec3 pixel_dv,
+	hittable** world
+) {
 	int x = blockIdx.x * blockDim.x + threadIdx.x;
 	int y = blockIdx.y * blockDim.y + threadIdx.y;
 
@@ -48,34 +38,24 @@ __global__ void processImageKernel(unsigned char* d_image, int width, int height
 	point3 pixel_center = pixel_upper_left + (x * pixel_du) + (y * pixel_dv);
 	vec3 ray_direction = pixel_center - camera_center;
 	ray r(camera_center, ray_direction);
-	color pixel_color = ray_color(r);
+	color pixel_color = ray_color(r, world);
 	// write color
 	write_color(d_image, pixel_color, x, y, width);
-	
+
 }
 
-void processImageNotKernel(unsigned char* d_image, int width, int height) {
-	for (int i = 0; i < width; i++) {
-		for (int j = 0; j < height; j++) {
-			int idx = (j * width + i) * 3;
-			// invert colors
-			d_image[idx] = 255 - d_image[idx];
-			d_image[idx + 1] = 255 - d_image[idx + 1];
-			d_image[idx + 2] = 255 - d_image[idx + 2];
-		}
-	}
-}
+
 
 /*
 * entry point for a function called from clicking a button
-* 
+*
 * 1. allocate memory on GPU
 * 2. copy memory on CPU to GPU
 * 3. launch kernel: call a function inputting a pointer on GPU
 * 4. after GPU pointer is filled correctly, put stuff back onto CPU.
-* 
+*
 */
-void processImage(unsigned char* h_image, int width, int height) {
+void processImage(unsigned char* h_image, int width, int height, hittable** world) {
 	/*processImageNotKernel(h_image, width, height);
 	return;*/
 
@@ -113,8 +93,8 @@ void processImage(unsigned char* h_image, int width, int height) {
 	dim3 gridSize((width + blockSize.x - 1) / blockSize.x, (height + blockSize.y - 1) / blockSize.y);
 
 	// launch kernel
-	processImageKernel << <gridSize, blockSize >> > (d_image, width, height, camera_center,
-		pixel_upper_left, pixel_du, pixel_dv);
+	processImageKernel<<<gridSize, blockSize>>>(d_image, width, height, camera_center,
+		pixel_upper_left, pixel_du, pixel_dv, world);
 
 	// copy processed device to host
 	cudaMemcpy(h_image, d_image, imageSize, cudaMemcpyDeviceToHost);

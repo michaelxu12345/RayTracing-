@@ -15,17 +15,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="RayTracing++.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <CudaCompile Include="processing.cu">
-      <Filter>Source Files</Filter>
-    </CudaCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="processing.cuh">
+    <ClInclude Include="processing.cu">
       <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="vec3.cuh">
@@ -40,14 +30,16 @@
     <ClInclude Include="hittable.cuh">
       <Filter>Source Files</Filter>
     </ClInclude>
-    <ClInclude Include="common.cuh">
-      <Filter>Source Files</Filter>
-    </ClInclude>
     <ClInclude Include="sphere.cuh">
       <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="hittable_list.cuh">
       <Filter>Source Files</Filter>
     </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <CudaCompile Include="RayTracing++.cu">
+      <Filter>Source Files</Filter>
+    </CudaCompile>
   </ItemGroup>
 </Project>
