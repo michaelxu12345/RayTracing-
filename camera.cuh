@@ -33,6 +33,7 @@ public:
 	point3 pixel_upper_left;
 	vec3 pixel_du;
 	vec3 pixel_dv;
+	int num_samples;
 
 	__host__ __device__ void initialize() {
 		image_height = int(image_width / aspect_ratio);
@@ -51,6 +52,16 @@ public:
 		point3 viewport_upper_left = center - vec3(0, 0, focal_length) -
 			viewport_u / 2 - viewport_v / 2;
 		pixel_upper_left = viewport_upper_left + 0.5f * (pixel_du + pixel_dv);
+	}
+
+	__device__ ray get_ray(float u, float v) {
+		return ray(center,
+			pixel_upper_left + u * pixel_du + v * pixel_dv);
+	}
+
+	__device__ vec3 sample_square(curandState* rand_state) {
+		return vec3(curand_uniform(rand_state) - 0.5, curand_uniform(rand_state) - 0.5
+			, 0);
 	}
 
 

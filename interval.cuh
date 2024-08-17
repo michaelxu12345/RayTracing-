@@ -6,7 +6,7 @@ public:
 	__device__ interval() : min(+infinity), max(-infinity) {}
 	__device__ interval(float _min, float _max) : min(_min), max(_max) {}
 
-	__device__ double size() const {
+	__device__ float size() const {
 		return max - min;
 	}
 

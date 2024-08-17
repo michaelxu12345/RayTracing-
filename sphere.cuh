@@ -1,9 +1,11 @@
 #pragma once
 #include "common.cuh"
+#include "hittable.cuh"
 
 class sphere : public hittable {
 public:
-	__device__ sphere(const point3& center, float radius) : center(center), radius(fmaxf(0, radius)) {}
+	__device__ sphere(const point3& center, float radius, material* mat) 
+		: center(center), radius(fmaxf(0, radius)), mat(mat) {}
 	__device__ bool hit(const ray& r, interval ray_t, hit_record& rec) const override {
 		vec3 oc = center - r.origin();
 		float a = dot(r.direction(), r.direction());
@@ -31,6 +33,7 @@ public:
 		vec3 outward_normal = (rec.p - center) / radius;
 
 		rec.set_face_normal(r, outward_normal);
+		rec.mat = mat;
 
 		return true;
 	}
@@ -38,4 +41,5 @@ public:
 private:
 	point3 center;
 	float radius;
+	material* mat;
 };

@@ -2,10 +2,13 @@
 
 #include "common.cuh"
 
+class material;
+
 class hit_record {
 public:
 	point3 p;
 	vec3 normal;
+	material* mat;
 	float t;
 	bool front_face;
 
@@ -17,7 +20,7 @@ public:
 
 class hittable {
 public:
-	__device__ virtual ~hittable() = default;
+	virtual ~hittable() = default;
 
 	__device__ virtual bool hit(const ray&, interval ray_t, hit_record& rec) const = 0;
 };

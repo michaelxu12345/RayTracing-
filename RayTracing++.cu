@@ -4,14 +4,31 @@
 #include "hittable.cuh"
 #include "hittable_list.cuh"
 #include "sphere.cuh"
+#include <curand_kernel.h>
 
 
 __global__ void create_world(hittable** d_list, hittable** d_world) {
     if (threadIdx.x == 0 && blockIdx.x == 0) {
-        d_list[0] = new sphere(vec3(0, 0, -1), 0.5);
-        d_list[1] = new sphere(vec3(0, -100.5, -1), 100);
+        d_list[0] = new sphere(vec3(0, 0, -1), 0.5,
+                        new lambertian(vec3(0.1, 0.2, 0.5)));
+        d_list[1] = new sphere(vec3(0, -100.5, -1), 100,
+                        new lambertian(vec3(0.1, 0.2, 0.5)));
         *d_world = new hittable_list(d_list, 2);
     }
+}
+
+__global__ void render_init(int width, int height, curandState* rand_state) {
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+
+    /*if ((x >= width) || (y >= height)) {
+        return;
+    }*/
+
+    int pixel_index = y * width + x;
+    curand_init(1984, pixel_index, 0, &rand_state[pixel_index]);
+
+    //int idx = (y * width + x) * 3;
 }
 
 int main(int argc, char* argv[]) {
@@ -53,6 +70,26 @@ int main(int argc, char* argv[]) {
         }
     }
 
+    // Setting up cam
+    camera cam;
+
+    cam.aspect_ratio = float(width) / float(height);
+    cam.image_width = width;
+    cam.image_height = height;
+    cam.initialize();
+    cam.num_samples = 10; // 1 for no antialiasing
+
+    // Setting random numbers
+    curandState* d_rand_state;
+    cudaMalloc((void**)&d_rand_state, width * height * sizeof(curandState));
+
+    dim3 blockSize(16, 16);
+    dim3 gridSize((cam.image_width + blockSize.x - 1) / blockSize.x, (cam.image_height + blockSize.y - 1) / blockSize.y);
+
+    render_init << <gridSize, blockSize >> > (width, height, d_rand_state);
+    checkError(__FILE__, __LINE__);
+    cudaDeviceSynchronize();
+
     // Creating world
     hittable** d_list;
     hittable** d_world;
@@ -60,18 +97,21 @@ int main(int argc, char* argv[]) {
     cudaMalloc((void**)&d_world, sizeof(hittable*));
 
     create_world <<<1, 1 >>> (d_list, d_world);
+    checkError(__FILE__, __LINE__);
+    cudaDeviceSynchronize();
 
-    camera cam;
+    
 
-    cam.aspect_ratio = float(width) / float(height);
-    cam.image_width = width;
-    cam.initialize();
+    processImage(image, d_world, cam, d_rand_state);
 
-    processImage(image, width, height, d_world, cam);
+    //cudaDeviceSynchronize();
+    
+    std::cout << "processed image" << std::endl;
 
     // Update texture with the processed image
     SDL_UpdateTexture(texture, NULL, image, width * 3);
 
+    std::cout << "updated texture" << std::endl;
     // Define button area
     SDL_Rect buttonRectRight = { 1100, 590, 100, 50 }; // x, y, width, height
     SDL_Rect buttonRectLeft = { 20, 590, 100, 50 }; // x, y, width, height
@@ -89,18 +129,18 @@ int main(int argc, char* argv[]) {
                 if (x >= buttonRectRight.x && x <= (buttonRectRight.x + buttonRectRight.w) &&
                     y >= buttonRectRight.y && y <= (buttonRectRight.y + buttonRectRight.h)) {
                     // Button clicked, reprocess image
-                    cam.center += vec3(1, 0, 0);
+                    cam.center += vec3(0, 0, -0.1);
                     cam.initialize();
-                    processImage(image, width, height, d_world, cam);
+                    processImage(image,d_world, cam, d_rand_state);
                     
                     SDL_UpdateTexture(texture, NULL, image, width * 3);
                 }
                 else if (x >= buttonRectLeft.x && x <= (buttonRectLeft.x + buttonRectLeft.w) &&
                     y >= buttonRectLeft.y && y <= (buttonRectLeft.y + buttonRectLeft.h)) {
                     // Button clicked, reprocess image
-                    cam.center += vec3(-1, 0, 0);
+                    cam.center += vec3(0, -0.1, 0);
                     cam.initialize();
-                    processImage(image, width, height, d_world, cam);
+                    processImage(image, d_world, cam, d_rand_state);
                     
                     SDL_UpdateTexture(texture, NULL, image, width * 3);
                 }
