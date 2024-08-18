@@ -10,10 +10,23 @@
 __global__ void create_world(hittable** d_list, hittable** d_world) {
     if (threadIdx.x == 0 && blockIdx.x == 0) {
         d_list[0] = new sphere(vec3(0, 0, -1), 0.5,
+                        new lambertian(vec3(0.1, 0.1, 0.8)));
+        d_list[1] = new sphere(vec3(0, -100.5, -1), 100.0,
+                        new lambertian(vec3(0.1, 0.5, 0.2)));
+        d_list[2] = new sphere(vec3(-1, 0, -1), 0.5,
+                        new dielectric(1.5));
+        d_list[3] = new sphere(vec3(-1.0, 0.0, -1), -0.4,
+                        new dielectric(1.5));
+        d_list[4] = new sphere(vec3(1.0, 0.0, -1), 0.5,
+                        new metal(vec3(0.8, 0.6, 0.2), 0.0));
+        *d_world = new hittable_list(d_list, 5);
+
+
+        /*d_list[0] = new sphere(vec3(0, 0, -1), 0.5,
+                        new metal(vec3(0.8, 0.2, 0.1), 0.0));
+        d_list[1] = new sphere(vec3(0, -100.5, -1), 0.5,
                         new lambertian(vec3(0.1, 0.2, 0.5)));
-        d_list[1] = new sphere(vec3(0, -100.5, -1), 100,
-                        new lambertian(vec3(0.1, 0.2, 0.5)));
-        *d_world = new hittable_list(d_list, 2);
+        *d_world = new hittable_list(d_list, 2);*/
     }
 }
 
@@ -60,15 +73,10 @@ int main(int argc, char* argv[]) {
     SDL_Texture* texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_STREAMING, width, height);
 
     // Allocate memory for image
-    unsigned char* image = new unsigned char[width * height * 3]; // Assuming RGB format
-    for (int j = 0; j < height; j++) {
-        for (int i = 0; i < width; i++) {
-            int idx = 3 * (j * width + i);
-            image[idx] = unsigned char(int(255.9999 * ((double(i)) / (width - 1))));
-            image[idx + 1] = unsigned char(int(255.9999 * ((double(j)) / (height - 1))));
-            image[idx + 2] = 0;
-        }
-    }
+    unsigned char* image;
+    cudaMallocManaged((void**)&image, height * width * 3);
+        
+    // new unsigned char[width * height * 3]; // Assuming RGB format
 
     // Setting up cam
     camera cam;
@@ -76,8 +84,13 @@ int main(int argc, char* argv[]) {
     cam.aspect_ratio = float(width) / float(height);
     cam.image_width = width;
     cam.image_height = height;
+    cam.vfov = 90;
+    cam.lookfrom = point3(-2, 2, 1);
+    cam.lookat = point3(0, 1, -1);
+    cam.vup = vec3(0, 1, 0);
+    cam.num_samples = 1;
+
     cam.initialize();
-    cam.num_samples = 10; // 1 for no antialiasing
 
     // Setting random numbers
     curandState* d_rand_state;
@@ -93,7 +106,7 @@ int main(int argc, char* argv[]) {
     // Creating world
     hittable** d_list;
     hittable** d_world;
-    cudaMalloc((void**)&d_list, 2 * sizeof(hittable*));
+    cudaMalloc((void**)&d_list, 5 * sizeof(hittable*));
     cudaMalloc((void**)&d_world, sizeof(hittable*));
 
     create_world <<<1, 1 >>> (d_list, d_world);
@@ -112,9 +125,6 @@ int main(int argc, char* argv[]) {
     SDL_UpdateTexture(texture, NULL, image, width * 3);
 
     std::cout << "updated texture" << std::endl;
-    // Define button area
-    SDL_Rect buttonRectRight = { 1100, 590, 100, 50 }; // x, y, width, height
-    SDL_Rect buttonRectLeft = { 20, 590, 100, 50 }; // x, y, width, height
     // Main loop
     bool running = true;
     SDL_Event event;
@@ -123,27 +133,50 @@ int main(int argc, char* argv[]) {
             if (event.type == SDL_QUIT) {
                 running = false;
             }
-            else if (event.type == SDL_MOUSEBUTTONDOWN) {
-                int x, y;
-                SDL_GetMouseState(&x, &y);
-                if (x >= buttonRectRight.x && x <= (buttonRectRight.x + buttonRectRight.w) &&
-                    y >= buttonRectRight.y && y <= (buttonRectRight.y + buttonRectRight.h)) {
-                    // Button clicked, reprocess image
-                    cam.center += vec3(0, 0, -0.1);
-                    cam.initialize();
-                    processImage(image,d_world, cam, d_rand_state);
-                    
-                    SDL_UpdateTexture(texture, NULL, image, width * 3);
+            else if (event.type == SDL_KEYDOWN) {
+                switch (event.key.keysym.sym) {
+                case SDLK_w:
+                    // Move camera forward
+                    cam.lookfrom += vec3(0, 0, -0.1);
+                    cam.lookat += vec3(0, 0, -0.1);
+                    break;
+                case SDLK_s:
+                    // Move camera backward
+                    cam.lookfrom += vec3(0, 0, 0.1);
+                    cam.lookat += vec3(0, 0, 0.1);
+                    break;
+                case SDLK_a:
+                    // Move camera left
+                    cam.lookfrom += vec3(-0.1, 0, 0);
+                    cam.lookat += vec3(-0.1, 0, 0);
+                    break;
+                case SDLK_d:
+                    // Move camera right
+                    cam.lookfrom += vec3(0.1, 0, 0);
+                    cam.lookat += vec3(0.1, 0, 0);
+                    break;
+                case SDLK_UP:
+                    // Look up (rotate around the x-axis)
+                    cam.lookat += vec3(0, 0.1, 0);
+                    break;
+                case SDLK_DOWN:
+                    // Look down (rotate around the x-axis)
+                    cam.lookat += vec3(0, -0.1, 0);
+                    break;
+                case SDLK_LEFT:
+                    // Look left (rotate around the y-axis)
+                    cam.lookat += vec3(-0.1, 0, 0);
+                    break;
+                case SDLK_RIGHT:
+                    // Look right (rotate around the y-axis)
+                    cam.lookat += vec3(0.1, 0, 0);
+                    break;
                 }
-                else if (x >= buttonRectLeft.x && x <= (buttonRectLeft.x + buttonRectLeft.w) &&
-                    y >= buttonRectLeft.y && y <= (buttonRectLeft.y + buttonRectLeft.h)) {
-                    // Button clicked, reprocess image
-                    cam.center += vec3(0, -0.1, 0);
-                    cam.initialize();
-                    processImage(image, d_world, cam, d_rand_state);
-                    
-                    SDL_UpdateTexture(texture, NULL, image, width * 3);
-                }
+
+                // Reinitialize camera and reprocess image after moving
+                cam.initialize();
+                processImage(image, d_world, cam, d_rand_state);
+                SDL_UpdateTexture(texture, NULL, image, width * 3);
             }
         }
 
@@ -153,11 +186,11 @@ int main(int argc, char* argv[]) {
         SDL_RenderCopy(renderer, texture, NULL, NULL);
 
         // Render the button
-        SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255); // Blue button
-        SDL_RenderFillRect(renderer, &buttonRectRight);
+        //SDL_SetRenderDrawColor(renderer, 0, 0, 255, 255); // Blue button
+        //SDL_RenderFillRect(renderer, &buttonRectRight);
 
-        SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255); // Blue button
-        SDL_RenderFillRect(renderer, &buttonRectLeft);
+        //SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255); // Blue button
+        //SDL_RenderFillRect(renderer, &buttonRectLeft);
 
         // Optionally, render button text (requires SDL_ttf for text rendering, not covered here)
 

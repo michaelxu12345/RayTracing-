@@ -5,24 +5,6 @@
 #include "hittable_list.cuh"
 
 
-//__global__ void processImageKernel(unsigned char* d_image, hittable** world, camera& cam) {
-//	int x = blockIdx.x * blockDim.x + threadIdx.x;
-//	int y = blockIdx.y * blockDim.y + threadIdx.y;
-//
-//	if ((x >= cam.image_width) || (y >= cam.image_height)) {
-//		return;
-//	}
-//
-//	//int idx = (y * width + x) * 3;
-//	point3 pixel_center = cam.pixel_upper_left + (x * cam.pixel_du) + (y * cam.pixel_dv);
-//	vec3 ray_direction = pixel_center - cam.center;
-//	ray r(cam.center, ray_direction);
-//	color pixel_color = cam.ray_color(r, world);
-//	// write color
-//	write_color(d_image, pixel_color, x, y, cam.image_width);
-//
-//}
-
 
 class camera {
 public:
@@ -35,28 +17,61 @@ public:
 	vec3 pixel_dv;
 	int num_samples;
 
+	float vfov = 90;
+	point3 lookfrom = point3(0, 0, 0);
+	point3 lookat = point3(0, 0, -1);
+	vec3 vup = vec3(0, 1, 0);
+	vec3 u, v, w;
+
+	float defocus_angle = 0;
+	float focus_dist = 10;
+	vec3 defocus_disk_u;
+	vec3 defocus_disk_v;
+
 	__host__ __device__ void initialize() {
 		image_height = int(image_width / aspect_ratio);
 		image_height = (image_height < 1) ? 1 : image_height;
 
-		float focal_length = 1.0f;
+		center = lookfrom;
+
+		// Determine viewport dimensions.
+		float theta = degrees_to_radians(vfov);
+		float h = tanf(theta / 2);
 		float viewport_height = 2.0f;
 		float viewport_width = viewport_height * (float(image_width) / image_height);
 
-		vec3 viewport_u = vec3(viewport_width, 0, 0);
-		vec3 viewport_v = vec3(0, -viewport_height, 0);
+		// calculate u, v, w unit basis vectors
+		w = unit_vector(lookfrom - lookat);
+		u = unit_vector(cross(vup, w));
+		v = cross(w, u);
 
+		// vectors across horizontal and down vertical viewport edges
+		vec3 viewport_u = viewport_width * u;
+		vec3 viewport_v = viewport_height * -v;
+
+		// horizontal and vertical delta vectors pixel to pixel
 		pixel_du = viewport_u / image_width;
 		pixel_dv = viewport_v / image_height;
 
-		point3 viewport_upper_left = center - vec3(0, 0, focal_length) -
+		// location of upper left pixel
+		point3 viewport_upper_left = center - (focus_dist * w) -
 			viewport_u / 2 - viewport_v / 2;
 		pixel_upper_left = viewport_upper_left + 0.5f * (pixel_du + pixel_dv);
+
+		float defocus_radius = focus_dist * tanf(degrees_to_radians(defocus_angle / 2));
+		defocus_disk_u = u * defocus_radius;
+		defocus_disk_v = v * defocus_radius;
 	}
 
-	__device__ ray get_ray(float u, float v) {
-		return ray(center,
-			pixel_upper_left + u * pixel_du + v * pixel_dv);
+	__device__ ray get_ray(float u, float v, curandState* rand_state) {
+
+		vec3 pixel_center = pixel_upper_left + u * pixel_du + v * pixel_dv;
+		vec3 pixel_sample = pixel_center + pixel_sample_square(rand_state);
+
+		vec3 ray_origin = (defocus_angle <= 0) ? center : defocus_disk_sample(rand_state);
+		vec3 ray_direction = pixel_sample - ray_origin;
+
+		return ray(ray_origin, ray_direction);
 	}
 
 	__device__ vec3 sample_square(curandState* rand_state) {
@@ -64,33 +79,16 @@ public:
 			, 0);
 	}
 
+	__device__ vec3 pixel_sample_square(curandState* rand_state) const {
+		float px = -0.5 + random_double(rand_state);
+		float py = -0.5 + random_double(rand_state);
+		return (px * pixel_du) + (py * pixel_dv);
+	}
 
-	/*__host__ __device__ void render(unsigned char* h_image, hittable** world) {
-		initialize();
-
-		unsigned char* d_image;
-		size_t imageSize = image_width * image_height * 3 * sizeof(unsigned char);
-
-		// device memory
-		cudaMalloc((void**)&d_image, imageSize);
-
-		// copy image to device mem
-		cudaMemcpy(d_image, h_image, imageSize, cudaMemcpyHostToDevice);
-
-		// block and grid sizes
-		dim3 blockSize(16, 16);
-		dim3 gridSize((image_width + blockSize.x - 1) / blockSize.x, (image_height + blockSize.y - 1) / blockSize.y);
-
-		// launch kernel
-		processImageKernel << <gridSize, blockSize >> > (d_image, world);
-
-		// copy processed device to host
-		cudaMemcpy(h_image, d_image, imageSize, cudaMemcpyDeviceToHost);
-
-		cudaFree(d_image);
-	}*/
-
-
+	__device__ point3 defocus_disk_sample(curandState* rand_state) const {
+		point3 p = random_in_unit_disk(rand_state);
+		return center + p[0] * defocus_disk_u + p[1] * defocus_disk_v;
+	}
 	
 };
 

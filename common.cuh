@@ -7,8 +7,8 @@
 const float infinity = 3.402823466e+38F;
 const float pi = 3.1415926535897932385;
 
-__device__ inline float degrees_to_radians(float degrees) {
-    return degrees * pi / 180.0f;
+__host__ __device__ inline float degrees_to_radians(float degrees) {
+    return degrees * 3.1415926535897932385 / 180.0f;
 }
 
 

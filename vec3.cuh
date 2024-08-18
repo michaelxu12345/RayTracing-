@@ -63,7 +63,7 @@ public:
         return vec3(random_double(rand_state), random_double(rand_state), random_double(rand_state));
     }
 
-    __device__ static vec3 random(double min, double max, curandState* rand_state) {
+    __device__ static vec3 random(float min, float max, curandState* rand_state) {
         return vec3(random_double(min, max, rand_state), 
             random_double(min, max, rand_state),
             random_double(min, max, rand_state));
@@ -145,7 +145,7 @@ __device__ vec3 reflect(const vec3& v, const vec3& n) {
     return v - 2 * dot(v, n) * n;
 }
 
-__device__ inline vec3 refract(const vec3& uv, const vec3& n, double etai_over_etat) {
+__device__ inline vec3 refract(const vec3& uv, const vec3& n, float etai_over_etat) {
     float cos_theta = fminf(dot(-uv, n), 1.0);
     vec3 r_out_perp = etai_over_etat * (uv + cos_theta * n);
     vec3 r_out_parallel = -sqrt(fabs(1.0 - r_out_perp.length_squared())) * n;

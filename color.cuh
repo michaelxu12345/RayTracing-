@@ -13,6 +13,10 @@ __device__ void write_color(unsigned char* d_image, color pixel_color, int x, in
 	auto g = pixel_color.y();
 	auto b = pixel_color.z();
 
+	r = linear_to_gamma(r);
+	g = linear_to_gamma(g);
+	b = linear_to_gamma(b);
+
 	interval intensity(0.000, 0.999);
 	int rbyte = int(255.999f * intensity.clamp(r));
 	int gbyte = int(255.999f * intensity.clamp(g));

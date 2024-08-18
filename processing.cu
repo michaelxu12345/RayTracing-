@@ -7,11 +7,10 @@
 
 
 __device__ color ray_color(const ray& r, hittable** world, curandState* rand_state) {
-	
 
 	ray my_ray = r;
 	color my_color(1.0, 1.0, 1.0);
-	for (int depth = 0; depth < 10; depth++) {
+	for (int depth = 0; depth < 5; depth++) {
 		hit_record rec;
 		if ((*world)->hit(my_ray, interval(0.001f, FLT_MAX), rec)) {
 			ray scattered = my_ray;
@@ -62,17 +61,17 @@ __global__ void processImageKernel(unsigned char* d_image,
 	color pixel_color = color(0, 0, 0);
 
 	if (cam.num_samples == 1) {
-		point3 pixel_center = cam.pixel_upper_left + (x * cam.pixel_du) + (y * cam.pixel_dv);
+		/*point3 pixel_center = cam.pixel_upper_left + (x * cam.pixel_du) + (y * cam.pixel_dv);
 		vec3 ray_direction = pixel_center - cam.center;
-		ray r(cam.center, ray_direction);
-		ray myray = cam.get_ray(x, y);
-		pixel_color = ray_color(r, world, &local_rand_state);
+		ray r(cam.center, ray_direction);*/
+		ray myray = cam.get_ray(x, y, &local_rand_state);
+		pixel_color = ray_color(myray, world, &local_rand_state);
 	}
 	else {
 		for (int samp = 0; samp < cam.num_samples; samp++) {
 			float u = float(x + curand_uniform(&local_rand_state)-0.5);// float(cam.image_width);
 			float v = float(y + curand_uniform(&local_rand_state)-0.5);// float(cam.image_height);
-			pixel_color += ray_color(cam.get_ray(u, v), world, &local_rand_state);
+			pixel_color += ray_color(cam.get_ray(u, v, &local_rand_state), world, &local_rand_state);
 		}
 	}
 	
@@ -98,28 +97,30 @@ void processImage(unsigned char* h_image,  hittable** world, camera& cam,
 	
 	int image_width = cam.image_width;
 	int image_height = cam.image_height;
-	unsigned char* d_image;
-	size_t imageSize = image_width * image_height * 3 * sizeof(unsigned char);
+	//unsigned char* d_image;
+	//size_t imageSize = image_width * image_height * 3 * sizeof(unsigned char);
 
-	// device memory
-	cudaMalloc((void**)&d_image, imageSize);
-	checkError(__FILE__, __LINE__);
+	//// device memory
+	//cudaMalloc((void**)&d_image, imageSize);
+	//checkError(__FILE__, __LINE__);
 
-	// copy image to device mem
-	cudaMemcpy(d_image, h_image, imageSize, cudaMemcpyHostToDevice);
-	checkError(__FILE__, __LINE__);
+	//// copy image to device mem
+	//cudaMemcpy(d_image, h_image, imageSize, cudaMemcpyHostToDevice);
+	//checkError(__FILE__, __LINE__);
 
 	// block and grid sizes
 	dim3 blockSize(16, 16);
 	dim3 gridSize((image_width + blockSize.x - 1) / blockSize.x, (image_height + blockSize.y - 1) / blockSize.y);
 
 	// launch kernel
-	processImageKernel << <gridSize, blockSize >> > (d_image, cam, world, d_rand_state);
+	processImageKernel << <gridSize, blockSize >> > (h_image, cam, world, d_rand_state);
 	checkError(__FILE__, __LINE__);
+	printf("device sync start\n");
 	cudaDeviceSynchronize();
 	checkError(__FILE__, __LINE__);
+	printf("kernel done\n");
 	// copy processed device to host
-	cudaMemcpy(h_image, d_image, imageSize, cudaMemcpyDeviceToHost);
+	/*cudaMemcpy(h_image, d_image, imageSize, cudaMemcpyDeviceToHost);
 
-	cudaFree(d_image);
+	cudaFree(d_image);*/
 }
