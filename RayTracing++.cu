@@ -88,7 +88,7 @@ int main(int argc, char* argv[]) {
     cam.lookfrom = point3(-2, 2, 1);
     cam.lookat = point3(0, 1, -1);
     cam.vup = vec3(0, 1, 0);
-    cam.num_samples = 1;
+    cam.num_samples = 20;
 
     cam.initialize();
 
