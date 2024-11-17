@@ -78,6 +78,8 @@ inline std::ostream& operator<<(std::ostream& out, const vec3& v) {
     return out << v.e[0] << ' ' << v.e[1] << ' ' << v.e[2];
 }
 
+
+
 __host__ __device__ inline vec3 operator+(const vec3& u, const vec3& v) {
     return vec3(u.e[0] + v.e[0], u.e[1] + v.e[1], u.e[2] + v.e[2]);
 }
@@ -158,4 +160,38 @@ __device__ inline vec3 random_in_unit_disk(curandState* rand_state) {
         if (p.length_squared() < 1)
             return p;
     }
+}
+
+__host__ __device__ inline vec3 rotate(const vec3& start, const vec3& end, float theta, int axis) {
+    float rad = degrees_to_radians(theta);
+    float cos_theta = cosf(rad);
+    float sin_theta = sinf(rad);
+
+    vec3 translated = end - start;
+
+    vec3 rotated;
+    if (axis == 0) {
+        rotated[0] = translated[0];
+        rotated[1] = translated[1] * cos_theta - translated[2] * sin_theta;
+        rotated[2] = translated[1] * sin_theta + translated[2] * cos_theta;
+    }
+    else if (axis == 1) {
+        rotated[0] = translated[0] * cos_theta + translated[2] * sin_theta;
+        rotated[1] = translated[1];
+        rotated[2] = -translated[0] * sin_theta + translated[2] * cos_theta;
+    }
+
+    rotated += start;
+    return rotated;
+}
+
+__host__ __device__ inline void translate( vec3& start,  vec3& end, float ratio, int axis) {
+
+    vec3 translated = end - start;
+
+    
+
+    start[axis] += (translated[axis] * ratio);
+    end[axis] += (translated[axis] * ratio);
+
 }

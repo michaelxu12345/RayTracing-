@@ -10,7 +10,7 @@ __device__ color ray_color(const ray& r, hittable** world, curandState* rand_sta
 
 	ray my_ray = r;
 	color my_color(1.0, 1.0, 1.0);
-	for (int depth = 0; depth < 20; depth++) {
+	for (int depth = 0; depth < 5; depth++) {
 		hit_record rec;
 		if ((*world)->hit(my_ray, interval(0.001f, FLT_MAX), rec)) {
 			ray scattered = my_ray;

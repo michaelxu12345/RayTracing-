@@ -10,7 +10,8 @@
 __global__ void create_world(hittable** d_list, hittable** d_world) {
     if (threadIdx.x == 0 && blockIdx.x == 0) {
         d_list[0] = new sphere(vec3(0, 0, -1), 0.5,
-                        new lambertian(vec3(0.1, 0.1, 0.8)));
+                        // new lambertian(vec3(0.1, 0.1, 0.8)));
+                        new metal(vec3(0.8, 0.6, 0.2), 0.0));
         d_list[1] = new sphere(vec3(0, -100.5, -1), 100.0,
                         new lambertian(vec3(0.1, 0.5, 0.2)));
         d_list[2] = new sphere(vec3(-1, 0, -1), 0.5,
@@ -88,7 +89,7 @@ int main(int argc, char* argv[]) {
     cam.lookfrom = point3(-2, 2, 1);
     cam.lookat = point3(0, 1, -1);
     cam.vup = vec3(0, 1, 0);
-    cam.num_samples = 20;
+    cam.num_samples = 5;
 
     cam.initialize();
 
@@ -113,7 +114,7 @@ int main(int argc, char* argv[]) {
     checkError(__FILE__, __LINE__);
     cudaDeviceSynchronize();
 
-    
+    float rotate_angle = 1.0;
 
     processImage(image, d_world, cam, d_rand_state);
 
@@ -137,39 +138,50 @@ int main(int argc, char* argv[]) {
                 switch (event.key.keysym.sym) {
                 case SDLK_w:
                     // Move camera forward
-                    cam.lookfrom += vec3(0, 0, -0.1);
-                    cam.lookat += vec3(0, 0, -0.1);
+
+                    /*cam.lookfrom += vec3(0, 0, -0.1);
+                    cam.lookat += vec3(0, 0, -0.1);*/
+
+                    translate(cam.lookfrom, cam.lookat, 0.1, 2);
                     break;
                 case SDLK_s:
                     // Move camera backward
-                    cam.lookfrom += vec3(0, 0, 0.1);
-                    cam.lookat += vec3(0, 0, 0.1);
+                    /*cam.lookfrom += vec3(0, 0, 0.1);
+                    cam.lookat += vec3(0, 0, 0.1);*/
+
+                    translate(cam.lookfrom, cam.lookat, -0.1, 2);
+
                     break;
                 case SDLK_a:
                     // Move camera left
-                    cam.lookfrom += vec3(-0.1, 0, 0);
-                    cam.lookat += vec3(-0.1, 0, 0);
+                    /*cam.lookfrom += vec3(-0.1, 0, 0);
+                    cam.lookat += vec3(-0.1, 0, 0);*/
+
+                    translate(cam.lookfrom, cam.lookat, -0.1, 0);
                     break;
                 case SDLK_d:
                     // Move camera right
-                    cam.lookfrom += vec3(0.1, 0, 0);
-                    cam.lookat += vec3(0.1, 0, 0);
+                    /*cam.lookfrom += vec3(0.1, 0, 0);
+                    cam.lookat += vec3(0.1, 0, 0);*/
+
+                    translate(cam.lookfrom, cam.lookat, 0.1, 0);
+
                     break;
                 case SDLK_UP:
                     // Look up (rotate around the x-axis)
-                    cam.lookat += vec3(0, 0.1, 0);
+                    cam.lookat = rotate(cam.lookfrom, cam.lookat, rotate_angle, 0);
                     break;
                 case SDLK_DOWN:
                     // Look down (rotate around the x-axis)
-                    cam.lookat += vec3(0, -0.1, 0);
+                    cam.lookat = rotate(cam.lookfrom, cam.lookat, -rotate_angle, 0);
                     break;
                 case SDLK_LEFT:
                     // Look left (rotate around the y-axis)
-                    cam.lookat += vec3(-0.1, 0, 0);
+                    cam.lookat = rotate(cam.lookfrom, cam.lookat, rotate_angle, 1);
                     break;
                 case SDLK_RIGHT:
                     // Look right (rotate around the y-axis)
-                    cam.lookat += vec3(0.1, 0, 0);
+                    cam.lookat = rotate(cam.lookfrom, cam.lookat, -rotate_angle, 1);
                     break;
                 }
 
